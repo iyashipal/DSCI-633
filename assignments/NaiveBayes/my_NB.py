@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from collections import Counter
-
+# DID NOT USE HINT FILE
 class my_NB:
 
     def __init__(self, alpha=1):
