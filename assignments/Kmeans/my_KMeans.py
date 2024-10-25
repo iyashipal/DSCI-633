@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-
+#DID NOT USE HINT FILE
 class my_KMeans:
 
     def __init__(self, n_clusters=8, init = "k-means++", n_init = 10, max_iter=300, tol=1e-4):
