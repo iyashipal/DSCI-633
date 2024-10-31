@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-
+#DID NOT USE HINT FILE
 class my_Logistic:
 
     def __init__(self, learning_rate = 0.1, batch_size = 10, max_iter = 100, shuffle = False):
