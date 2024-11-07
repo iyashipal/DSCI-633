@@ -53,8 +53,8 @@ class my_evaluation:
         if target:
             # Recall for a specific class
             TP = self.confusion_matrix[target]["TP"]
-            FN = self.confusion_matrix[target]["FN"]
-            prec = TP / (TP + FN) if (TP + FN) > 0 else 0
+            FP = self.confusion_matrix[target]["FP"]
+            prec = TP / (TP + FP) if (TP + FP) > 0 else 0
             return prec
         else:
             # Average precision
@@ -140,7 +140,7 @@ class my_evaluation:
             return None
         else:
             # write your own code below
-            if target in self.pred_proba:
+            if target in self.pred_proba.columns:
                 actuals_binary = (self.actuals == target).astype(int)
                 return roc_auc_score(actuals_binary, self.pred_proba[target])
             else:
