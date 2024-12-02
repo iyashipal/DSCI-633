@@ -53,7 +53,7 @@ class my_model:
         )
 
         # Random Forest Classifier
-        model = RandomForestClassifier(n_estimators=10, random_state=42, class_weight="balanced", n_jobs=-1)
+        model = RandomForestClassifier(n_estimators=75, random_state=42, class_weight="balanced", n_jobs=-1, bootstrap=True)
 
         # Create pipeline
         self.pipeline = Pipeline([
@@ -69,7 +69,7 @@ class my_model:
              "model__min_samples_leaf": [1],
          }
         
-        grid_search = GridSearchCV(self.pipeline, param_grid, cv=7, scoring="f1", n_jobs=-1)
+        grid_search = GridSearchCV(self.pipeline, param_grid, cv=9, scoring="f1", n_jobs=-1)
         grid_search.fit(X, y)
 
         # Use the best model from grid search
