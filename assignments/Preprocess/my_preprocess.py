@@ -1,9 +1,8 @@
-from random import sample
 import numpy as np
 from scipy.linalg import svd
 from copy import deepcopy
-
-# DID NOT USE my_preprocess_hint.py
+from collections import Counter
+from pdb import set_trace
 
 class my_normalizer:
     def __init__(self, norm="Min-Max", axis = 1):
@@ -17,40 +16,60 @@ class my_normalizer:
         #     X: input matrix
         #     Calculate offsets and scalers which are used in transform()
         X_array  = np.asarray(X)
-        # Write your own code below
-        if self.norm == "Min-Max":
-            # Calculate min and max for each row or column
-            self.min_ = X_array.min(axis=self.axis, keepdims=True)
-            self.max_ = X_array.max(axis=self.axis, keepdims=True)
-
-        elif self.norm == "Standard_Score":
-            # Calculate mean and std for each row or column
-            self.mean_ = X_array.mean(axis=self.axis, keepdims=True)
-            self.std_ = X_array.std(axis=self.axis, keepdims=True)
-
+        m, n = X_array.shape
+        self.offsets = []
+        self.scalers = []
+        if self.axis == 1:
+            for col in range(n):
+                offset, scaler = self.vector_norm(X_array[:, col])
+                self.offsets.append(offset)
+                self.scalers.append(scaler)
+        elif self.axis == 0:
+            for row in range(m):
+                offset, scaler = self.vector_norm(X_array[row])
+                self.offsets.append(offset)
+                self.scalers.append(scaler)
+        else:
+            raise Exception("Unknown axis.")
 
     def transform(self, X):
-        # Transform X into X_norm
         X_norm = deepcopy(np.asarray(X))
-        # Write your own code below
-        if self.norm == "Min-Max":
-            X_norm = (X_norm - self.min_) / (self.max_ - self.min_)
-        elif self.norm == "Standard_Score":
-            X_norm = (X_norm - self.mean_) / self.std_
-        elif self.norm == "L1":
-            # L1 normalization: Sum of absolute values of rows or columns should be 1
-            norm = np.sum(np.abs(X_norm), axis=self.axis, keepdims=True)
-            X_norm = X_norm / norm
-        elif self.norm == "L2":
-            # L2 normalization: Sum of squares of rows or columns should be 1
-            norm = np.sqrt(np.sum(np.square(X_norm), axis=self.axis, keepdims=True))
-            X_norm = X_norm / norm
-
+        m, n = X_norm.shape
+        if self.axis == 1:
+            for col in range(n):
+                X_norm[:, col] = (X_norm[:, col]-self.offsets[col])/self.scalers[col]
+        elif self.axis == 0:
+            for row in range(m):
+                X_norm[row] = (X_norm[row]-self.offsets[row])/self.scalers[row]
+        else:
+            raise Exception("Unknown axis.")
         return X_norm
 
     def fit_transform(self, X):
         self.fit(X)
         return self.transform(X)
+
+    def vector_norm(self, x):
+        # Calculate the offset and scaler for input vector x
+        if self.norm == "Min-Max":
+            # Write your own code below
+            offset = np.min(x)
+            scaler = np.max(x) - np.min(x)
+        elif self.norm == "L1":
+            # Write your own code below
+            offset = 0  # L1 norm does not have offset
+            scaler = np.sum(np.abs(x))
+        elif self.norm == "L2":
+            # Write your own code below
+            offset = 0
+            scaler = np.sqrt(np.sum(x**2))
+        elif self.norm == "Standard_Score":
+            # Write your own code below
+            offset = np.mean(x)
+            scaler = np.std(x)
+        else:
+            raise Exception("Unknown normlization.")
+        return offset, scaler
 
 class my_pca:
     def __init__(self, n_components = 5):
@@ -63,19 +82,16 @@ class my_pca:
         #     X: input matrix
         #  Calculates:
         #     self.principal_components: the top n_components principal_components
-        # Vh = the transpose of V
+        #  Vh = the transpose of V
         U, s, Vh = svd(X)
         # Write your own code below
-         # Keep the first n_components from Vh (transpose of V)
+        U, s, Vh = svd(X)
         self.principal_components = Vh[:self.n_components].T
 
     def transform(self, X):
         #     X_pca = X.dot(self.principal_components)
         X_array = np.asarray(X)
-        # Write your own code below
-        # Project X onto the principal components
-        X_pca = X_array.dot(self.principal_components)
-        return X_pca
+        return X_array.dot(self.principal_components)
 
     def fit_transform(self, X):
         self.fit(X)
@@ -83,7 +99,7 @@ class my_pca:
 
 def stratified_sampling(y, ratio, replace = True):
     #  Inputs:
-    #     y: class labels
+    #     y: a 1-d array of class labels
     #     0 < ratio < 1: len(sample) = len(y) * ratio
     #     replace = True: sample with replacement
     #     replace = False: sample without replacement
@@ -95,16 +111,14 @@ def stratified_sampling(y, ratio, replace = True):
     if ratio<=0 or ratio>=1:
         raise Exception("ratio must be 0 < ratio < 1.")
     y_array = np.asarray(y)
+    # Write your own code below
     unique_classes, class_counts = np.unique(y_array, return_counts=True)
     sample = []
-    y_array = np.asarray(y)
-    # Write your own code below
-     # Perform stratified sampling for each class
-    for cls, count in zip(unique_classes, class_counts):
-        n_samples = int(np.ceil(ratio * count))
-        class_indices = np.where(y_array == cls)[0]
-        class_sample = np.random.choice(class_indices, size=n_samples, replace=replace)
-        sample.extend(class_sample)
 
+    for cls, count in zip(unique_classes, class_counts):
+        indices = np.where(y_array == cls)[0]
+        n_samples = int(np.ceil(ratio * count))
+        sampled_indices = np.random.choice(indices, n_samples, replace=replace)
+        sample.extend(sampled_indices)
 
     return np.array(sample).astype(int)
