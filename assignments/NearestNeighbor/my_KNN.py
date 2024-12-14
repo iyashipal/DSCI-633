@@ -2,8 +2,6 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 
-#DID NOT USE HINT FILE
-
 class my_KNN:
 
     def __init__(self, n_neighbors=5, metric="minkowski", p=2):
@@ -19,65 +17,69 @@ class my_KNN:
         # X: pd.DataFrame, independent variables, float
         # y: list, np.array or pd.Series, dependent variables, int or str
         self.classes_ = list(set(list(y)))
-        # write your code below
-        # Store the training data
-        self.X_train = X
-        self.y_train = y
-        # Extract unique classes
-        self.classes_ = list(set(list(y)))
+        self.X = X
+        self.y = y
         return
-    def _compute_distance(self, x1, x2):
-            # Compute distance based on the metric
-            if self.metric == "minkowski":
-                return distance.minkowski(x1, x2, self.p)
-            elif self.metric == "euclidean":
-                return distance.euclidean(x1, x2)
-            elif self.metric == "manhattan":
-                return distance.cityblock(x1, x2)
-            elif self.metric == "cosine":
-                return 1 - distance.cosine(x1, x2)
-            else:
-                raise ValueError("Unsupported metric")
-            
+
+    def dist(self,x):
+        # Calculate distances of training data to a single input data point (distances from self.X to x)
+        # Output np.array([distances to x])
+        if self.metric == "minkowski":
+            distances = np.sum(np.abs(self.X - x) ** self.p, axis=1) ** (1 / self.p)
+
+
+        elif self.metric == "euclidean":
+            distances = np.sqrt(np.sum((self.X - x) ** 2, axis=1))
+
+
+        elif self.metric == "manhattan":
+            distances = np.sum(np.abs(self.X - x), axis=1)
+
+
+        elif self.metric == "cosine":
+            dot_product = np.dot(self.X, x)
+            norm_self = np.linalg.norm(self.X, axis=1)
+            norm_x = np.linalg.norm(x)
+            distances = 1 - (dot_product / (norm_self * norm_x))
+
+
+        else:
+            raise Exception("Unknown criterion.")
+        return distances
+
+    def k_neighbors(self,x):
+        # Return the stats of the labels of k nearest neighbors to a single input data point (np.array)
+        # Output: Counter(labels of the self.n_neighbors nearest neighbors) e.g. {"Class A":3, "Class B":2}
+        distances = self.dist(x)
+        nearest_indices = np.argsort(distances)[:self.n_neighbors]
+        nearest_labels = [self.y.iloc[idx] for idx in nearest_indices]
+        output= Counter(nearest_labels)
+        return output
+
     def predict(self, X):
         # X: pd.DataFrame, independent variables, float
         # return predictions: list
-        # write your code below
-        predictions = []
-        # For each test point, find the nearest neighbors
-        for _, x_test in X.iterrows():
-            # Calculate distances from the test point to all training points
-            distances = [self._compute_distance(x_test, x_train) for _, x_train in self.X_train.iterrows()]
-            # Get indices of the nearest neighbors
-            nearest_neighbors_idx = np.argsort(distances)[:self.n_neighbors]
-            # Find the labels of the nearest neighbors
-            nearest_labels = [self.y_train.iloc[i] for i in nearest_neighbors_idx]
-            # Get the most common label (majority voting)
-            common_label = Counter(nearest_labels).most_common(1)[0][0]
-            predictions.append(common_label)
+        probs = self.predict_proba(X)
+        predictions = [self.classes_[np.argmax(prob)] for prob in probs.to_numpy()]
         return predictions
 
     def predict_proba(self, X):
         # X: pd.DataFrame, independent variables, float
         # prob is a dict of prediction probabilities belonging to each categories
         # return probs = pd.DataFrame(list of prob, columns = self.classes_)
-        # write your code below
         probs = []
-        # For each test point, find the nearest neighbors and calculate probabilities
-        for _, x_test in X.iterrows():
-            # Calculate distances from the test point to all training points
-            distances = [self._compute_distance(x_test, x_train) for _, x_train in self.X_train.iterrows()]
-            # Get indices of the nearest neighbors
-            nearest_neighbors_idx = np.argsort(distances)[:self.n_neighbors]
-            # Find the labels of the nearest neighbors
-            nearest_labels = [self.y_train.iloc[i] for i in nearest_neighbors_idx]
-            # Count the occurrences of each class in the neighbors
-            label_count = Counter(nearest_labels)
-            # Calculate the probability for each class
-            prob = {cls: label_count.get(cls, 0) / self.n_neighbors for cls in self.classes_}
+        try:
+            X_feature = X[self.X.columns]
+        except:
+            raise Exception("Input data mismatch.")
+
+        for x in X_feature.to_numpy():
+            neighbors = self.k_neighbors(x)
+            # Calculate the probability of data point x belonging to each class
+            # e.g. prob = {"2": 1/3, "1": 2/3}
+            prob = {cls: neighbors[cls] / self.n_neighbors for cls in self.classes_}
             probs.append(prob)
-        # Convert the list of probabilities to a DataFrame
-        probs_df = pd.DataFrame(probs, columns=self.classes_)
+        probs = pd.DataFrame(probs, columns=self.classes_)
         return probs
 
 
