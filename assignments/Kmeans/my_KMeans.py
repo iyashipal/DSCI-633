@@ -1,14 +1,13 @@
 import pandas as pd
 import numpy as np
-#DID NOT USE HINT FILE
+from pdb import set_trace
+
 class my_KMeans:
 
     def __init__(self, n_clusters=8, init = "k-means++", n_init = 10, max_iter=300, tol=1e-4):
         # init = {"k-means++", "random"}
-        # use euclidean distance for inertia calculation.
         # stop when either # iteration is greater than max_iter or the delta of self.inertia_ is smaller than tol.
         # repeat n_init times and keep the best run (cluster_centers_, inertia_) with the lowest inertia_.
-
         self.n_clusters = int(n_clusters)
         self.init = init
         self.n_init = n_init
@@ -21,58 +20,96 @@ class my_KMeans:
         # Sum of squared distances of samples to their closest cluster center.
         self.inertia_ = None
 
+    def dist(self, a, b):
+        # Compute Euclidean distance between a and b
+        return np.sum((np.array(a)-np.array(b))**2)**(0.5)
+
+    def initiate(self, X):
+        # Initiate cluster centers
+        # Input X is numpy.array
+        # Output cluster_centers (list)
+
+        if self.init == "random":
+            # Randomly choose k data points as initial cluster
+            cluster_centers = X[np.random.choice(X.shape[0], self.n_clusters, replace=False)]
+
+        elif self.init == "k-means++":
+            # K-means++ initialization
+            cluster_centers = self.kmeans_plus_plus(X)
+
+        else:
+            raise Exception("Unknown value of self.init.")
+        return cluster_centers
+    
+    def kmeans_plus_plus(self, X):
+        centers = [X[np.random.choice(X.shape[0])]]  # Randomly pick the first centroid
+        for _ in range(1, self.n_clusters):
+            dist_sq = np.min([np.sum((X - center)**2, axis=1) for center in centers], axis=0)
+            probs = dist_sq / dist_sq.sum()
+            new_center = X[np.random.choice(X.shape[0], p=probs)]
+            centers.append(new_center)
+        return np.array(centers)
+
+    def fit_once(self, X):
+        # Fit once
+        # Input X is numpy.array
+        # Output: cluster_centers (list), inertia
+
+        # Initiate cluster centers
+        cluster_centers = self.initiate(X)
+        last_inertia = None
+        # Iterate
+        for i in range(self.max_iter+1):
+            # Assign each training data point to its nearest cluster_centers
+            clusters = [[] for i in range(self.n_clusters)]
+            inertia = 0
+            for x in X:
+                # calculate distances between x and each cluster center
+                dists = [self.dist(x, center) for center in cluster_centers]
+                # calculate inertia
+                inertia += min(dists)
+                # find the cluster that x belongs to
+                cluster_id = np.argmin(dists)
+                # add x to that cluster
+                clusters[cluster_id].append(x)
+
+            if (last_inertia and last_inertia - inertia < self.tol) or i==self.max_iter:
+                break
+            # Update cluster centers
+
+            cluster_centers = np.array([np.mean(clusters[i], axis=0) for i in range(self.n_clusters)])
+
+            last_inertia = inertia
+
+        return cluster_centers, inertia
+
+
     def fit(self, X):
-        # X: pd.DataFrame, independent variables, float        
-        # repeat self.n_init times and keep the best run 
+        # X: pd.DataFrame, independent variables, float
+        # repeat self.n_init times and keep the best run
             # (self.cluster_centers_, self.inertia_) with the lowest self.inertia_.
-        # write your code below
-        best_inertia = float('inf')  # Initialize best inertia as infinity
-        best_centroids = None  # Placeholder for best centroids
-
-        for _ in range(self.n_init):
-            # Step 1: Initialize centroids
-            centroids = self._init_centroids(X)
-
-            for _ in range(self.max_iter):
-                # Step 2: Assign points to the nearest centroid
-                distances = self._calculate_distances(X, centroids)
-                labels = np.argmin(distances, axis=1)
-
-                # Step 3: Compute new centroids
-                new_centroids = np.array([X[labels == j].mean(axis=0) for j in range(self.n_clusters)])
-
-                # Step 4: Check for convergence
-                if np.all(np.abs(new_centroids - centroids) < self.tol):
-                    break
-                centroids = new_centroids
-
-            # Calculate inertia for this run
-            inertia = np.sum(np.min(self._calculate_distances(X, centroids), axis=1))
-
-            # Keep the best centroids with the lowest inertia
-            if inertia < best_inertia:
-                best_inertia = inertia
-                best_centroids = centroids
-
-        self.cluster_centers_ = best_centroids
-        self.inertia_ = best_inertia
+        X_feature = X.to_numpy()
+        for i in range(self.n_init):
+            cluster_centers, inertia = self.fit_once(X_feature)
+            if self.inertia_==None or inertia < self.inertia_:
+                self.inertia_ = inertia
+                self.cluster_centers_ = cluster_centers
         return
 
-    def predict(self, X):
-        # X: pd.DataFrame, independent variables, float
-        # return predictions: list
-        # write your code below
-        distances = self._calculate_distances(X, self.cluster_centers_)
-        predictions = np.argmin(distances, axis=1)
-        return predictions.tolist()
 
     def transform(self, X):
         # Transform to cluster-distance space
         # X: pd.DataFrame, independent variables, float
         # return dists = list of [dist to centroid 1, dist to centroid 2, ...]
-        # write your code below
-        dists = self._calculate_distances(X, self.cluster_centers_)
-        return dists.tolist()
+        dists = [[self.dist(x,centroid) for centroid in self.cluster_centers_] for x in X.to_numpy()]
+        return dists
+
+    def predict(self, X):
+        # X: pd.DataFrame, independent variables, float
+        # return predictions: list
+        predictions = [np.argmin(dist) for dist in self.transform(X)]
+        return predictions
+
 
     def fit_predict(self, X):
         self.fit(X)
@@ -81,38 +118,4 @@ class my_KMeans:
     def fit_transform(self, X):
         self.fit(X)
         return self.transform(X)
-    def _init_centroids(self, X):
-        """Initialize centroids based on the selected method."""
-        if self.init == "random":
-            indices = np.random.choice(X.index, self.n_clusters, replace=False)
-            return X.loc[indices].to_numpy()
-        elif self.init == "k-means++":
-            return self._kmeans_plus_plus(X)
-
-    def _kmeans_plus_plus(self, X):
-        """Initialize centroids using the k-means++ method."""
-        centroids = []
-        # Choose the first centroid randomly
-        centroids.append(X.sample().to_numpy()[0])
-
-        for _ in range(1, self.n_clusters):
-            # Compute the squared distances to the nearest existing centroid
-            dist_sq = np.min(self._calculate_distances(X, np.array(centroids))**2, axis=1)
-            probs = dist_sq / np.sum(dist_sq)
-            cumulative_probs = np.cumsum(probs)
-            r = np.random.rand()
-
-            # Select the next centroid based on probabilities
-            index = np.where(cumulative_probs >= r)[0][0]
-            centroids.append(X.iloc[index].to_numpy())
-
-        return np.array(centroids)
-
-    def _calculate_distances(self, X, centroids):
-        """Calculate the Euclidean distance between each point and each centroid."""
-        return np.linalg.norm(X.to_numpy()[:, np.newaxis] - centroids, axis=2)
-
-
-
-
 
